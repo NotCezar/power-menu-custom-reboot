@@ -4,7 +4,7 @@
     <key name="bootloader-backend" type="s">
       <default>'auto'</default>
       <summary>Bootloader Backend</summary>
-      <description>Choice of bootloader backend: 'auto', 'efibootmgr', 'grub', 'systemd-boot', 'custom'</description>
+      <description>Choice of bootloader backend: 'auto', 'grub', 'efibootmgr', 'systemd-boot'</description>
     </key>
     <key name="display-mode" type="s">
       <default>'submenu'</default>
@@ -25,11 +25,6 @@
       <default>'{}'</default>
       <summary>Icon Overrides</summary>
       <description>JSON mapping of entry ID or title to icon name or file path</description>
-    </key>
-    <key name="custom-entries" type="s">
-      <default>'[]'</default>
-      <summary>Custom OS Entries</summary>
-      <description>JSON array of custom boot entries</description>
     </key>
     <key name="hidden-entries" type="s">
       <default>'[]'</default>

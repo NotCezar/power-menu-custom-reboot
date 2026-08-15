@@ -3,7 +3,7 @@ import Gtk from 'gi://Gtk';
 import Gio from 'gi://Gio';
 import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import { BootloaderManager } from './bootloader.js';
-import { createGIcon, getOSIcon, logError } from './utils.js';
+import { getOSIcon, logError } from './utils.js';
 
 export default class PowerMenuCustomRebootPreferences extends ExtensionPreferences {
     async fillPreferencesWindow(window) {
@@ -30,12 +30,11 @@ export default class PowerMenuCustomRebootPreferences extends ExtensionPreferenc
                 'Auto-detect Best',
                 'GRUB / GRUB2',
                 'EFI Boot Manager (efibootmgr)',
-                'systemd-boot',
-                'Custom Commands Only'
+                'systemd-boot'
             ]),
         });
 
-        const backends = ['auto', 'grub', 'efibootmgr', 'systemd-boot', 'custom'];
+        const backends = ['auto', 'grub', 'efibootmgr', 'systemd-boot'];
         const currentBackend = settings.get_string('bootloader-backend');
         const selectedIndex = backends.indexOf(currentBackend);
         if (selectedIndex >= 0) {
@@ -96,48 +95,6 @@ export default class PowerMenuCustomRebootPreferences extends ExtensionPreferenc
         page.add(entriesGroup);
 
         await this._refreshDetectedEntriesGroup(window, entriesGroup, settings);
-
-        // GRUB Management Group
-        const grubGroup = new Adw.PreferencesGroup({
-            title: 'GRUB Boot Menu Behavior',
-            description: 'Disable GRUB menu timeout so your PC always boots instantly into Fedora by default.',
-        });
-        page.add(grubGroup);
-
-        const hideGrubRow = new Adw.ActionRow({
-            title: 'Disable GRUB Menu & Default to Fedora',
-            subtitle: 'Sets GRUB_TIMEOUT=0 and GRUB_TIMEOUT_STYLE=hidden in /etc/default/grub',
-        });
-        const hideGrubBtn = new Gtk.Button({
-            label: 'Hide GRUB Menu',
-            valign: Gtk.Align.CENTER,
-        });
-        hideGrubBtn.connect('clicked', () => {
-            this._hideGrubMenu(window);
-        });
-        hideGrubRow.add_suffix(hideGrubBtn);
-        grubGroup.add(hideGrubRow);
-
-        // Polkit Setup Group
-        const polkitGroup = new Adw.PreferencesGroup({
-            title: 'Passwordless Setup',
-            description: 'Allow changing next boot target without typing root password each time.',
-        });
-        page.add(polkitGroup);
-
-        const polkitRow = new Adw.ActionRow({
-            title: 'Install Passwordless Polkit Policy',
-            subtitle: 'Creates /etc/polkit-1/rules.d/99-custom-reboot.rules for efibootmgr & grub2-reboot',
-        });
-        const installBtn = new Gtk.Button({
-            label: 'Install Rule',
-            valign: Gtk.Align.CENTER,
-        });
-        installBtn.connect('clicked', () => {
-            this._installPolkitRule(window);
-        });
-        polkitRow.add_suffix(installBtn);
-        polkitGroup.add(polkitRow);
     }
 
     async _refreshDetectedEntriesGroup(window, entriesGroup, settings) {
@@ -359,63 +316,6 @@ export default class PowerMenuCustomRebootPreferences extends ExtensionPreferenc
                 dialog.destroy();
             });
             dialog.show();
-        }
-    }
-
-    _hideGrubMenu(window) {
-        const cmd = "sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/' /etc/default/grub && (grep -q 'GRUB_TIMEOUT_STYLE' /etc/default/grub && sed -i 's/^GRUB_TIMEOUT_STYLE=.*/GRUB_TIMEOUT_STYLE=hidden/' /etc/default/grub || echo 'GRUB_TIMEOUT_STYLE=\"hidden\"' >> /etc/default/grub) && (grep -q 'GRUB_RECORDFAIL_TIMEOUT' /etc/default/grub || echo 'GRUB_RECORDFAIL_TIMEOUT=0' >> /etc/default/grub) && (grub2-set-default 0 2>/dev/null || true) && (grub2-mkconfig -o /boot/grub2/grub.cfg 2>/dev/null || grub-mkconfig -o /boot/grub/grub.cfg)";
-
-        try {
-            const proc = new Gio.Subprocess({
-                argv: ['pkexec', 'sh', '-c', cmd],
-                flags: Gio.SubprocessFlags.NONE,
-            });
-            proc.init(null);
-            proc.wait_async(null, (p, res) => {
-                try {
-                    p.wait_finish(res);
-                    const toast = new Adw.Toast({ title: 'GRUB menu disabled! Defaulting to Fedora.' });
-                    window.add_toast(toast);
-                } catch (e) {
-                    const toast = new Adw.Toast({ title: 'Operation cancelled or failed.' });
-                    window.add_toast(toast);
-                }
-            });
-        } catch (e) {
-            logError('Hide GRUB error', e);
-        }
-    }
-
-    _installPolkitRule(window) {
-        const polkitContent = `/* Polkit rule for Power Menu Custom Reboot extension */
-polkit.addRule(function(action, subject) {
-    if ((action.id == "org.freedesktop.policykit.exec") &&
-        subject.isInGroup("wheel")) {
-        var cmd = action.lookup("command_line");
-        if (cmd && (cmd.indexOf("efibootmgr") >= 0 || cmd.indexOf("grub-reboot") >= 0 || cmd.indexOf("grub2-reboot") >= 0 || cmd.indexOf("bootctl") >= 0)) {
-            return polkit.Result.YES;
-        }
-    }
-});
-`;
-        try {
-            const proc = new Gio.Subprocess({
-                argv: ['pkexec', 'sh', '-c', 'cat > /etc/polkit-1/rules.d/99-custom-reboot.rules'],
-                flags: Gio.SubprocessFlags.STDIN_PIPE,
-            });
-            proc.init(null);
-            proc.communicate_utf8_async(polkitContent, null, (p, res) => {
-                try {
-                    p.communicate_utf8_finish(res);
-                    const toast = new Adw.Toast({ title: 'Polkit rule installed successfully!' });
-                    window.add_toast(toast);
-                } catch (e) {
-                    const toast = new Adw.Toast({ title: 'Installation failed or cancelled.' });
-                    window.add_toast(toast);
-                }
-            });
-        } catch (e) {
-            logError('Polkit install error', e);
         }
     }
 }

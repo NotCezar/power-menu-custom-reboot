@@ -121,25 +121,6 @@ export class BootloaderManager {
             }
         }
 
-        // Custom entries
-        try {
-            const customJson = settings.get_string('custom-entries');
-            const customList = JSON.parse(customJson || '[]');
-            for (const item of customList) {
-                if (item.title && item.command) {
-                    entries.push({
-                        id: item.id || item.title,
-                        title: item.title,
-                        backend: 'custom',
-                        command: item.command,
-                        icon: item.icon || 'system-reboot-symbolic',
-                    });
-                }
-            }
-        } catch (e) {
-            logError('Parsing custom entries failed', e);
-        }
-
         const filtered = await this._filterCurrentOs(entries);
         this._cachedEntries = filtered;
         this._lastFetchTime = now;
@@ -174,8 +155,6 @@ export class BootloaderManager {
             return await this.setEfiBootTarget(entry.id);
         } else if (entry.backend === 'systemd-boot') {
             return await this.setSystemdBootTarget(entry.id);
-        } else if (entry.backend === 'custom' && entry.command) {
-            return await this.runCustomCommand(entry.command);
         }
         return false;
     }
@@ -309,11 +288,6 @@ export class BootloaderManager {
     static async setSystemdBootTarget(id) {
         const bin = '/usr/bin/bootctl';
         const [status] = await execCommand(['/usr/bin/pkexec', bin, 'set-oneshot', id]);
-        return status === 0;
-    }
-
-    static async runCustomCommand(command) {
-        const [status] = await execCommand(['sh', '-c', command]);
         return status === 0;
     }
 
