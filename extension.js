@@ -130,7 +130,7 @@ export default class PowerMenuCustomReboot extends Extension {
 
     _createSubmenuItem(entries) {
         const submenuItem = new PopupMenu.PopupSubMenuMenuItem(
-            'Reboot Into…',
+            'Reboot Into...',
             true
         );
         submenuItem.icon.gicon = Gio.Icon.new_for_string('system-reboot-symbolic');
@@ -160,7 +160,7 @@ export default class PowerMenuCustomReboot extends Extension {
 
         // Separator & Preferences
         submenuItem.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        const prefsItem = new PopupMenu.PopupMenuItem('Reboot Settings…');
+        const prefsItem = new PopupMenu.PopupMenuItem('Reboot Settings...');
         const prefsIcon = new St.Icon({
             icon_name: 'emblem-system-symbolic',
             fallback_icon_name: 'preferences-system-symbolic',

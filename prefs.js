@@ -212,7 +212,7 @@ export default class PowerMenuCustomRebootPreferences extends ExtensionPreferenc
             });
 
             const browseBtn = new Gtk.Button({
-                label: 'Choose Icon File…',
+                label: 'Choose Icon File...',
                 valign: Gtk.Align.CENTER,
             });
             browseBtn.connect('clicked', () => {
