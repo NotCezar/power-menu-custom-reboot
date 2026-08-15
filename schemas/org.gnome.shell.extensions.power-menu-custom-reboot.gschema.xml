@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.power-menu-custom-reboot" path="/org/gnome/shell/extensions/power-menu-custom-reboot/">
+    <key name="bootloader-backend" type="s">
+      <default>'auto'</default>
+      <summary>Bootloader Backend</summary>
+      <description>Choice of bootloader backend: 'auto', 'efibootmgr', 'grub', 'systemd-boot', 'custom'</description>
+    </key>
+    <key name="display-mode" type="s">
+      <default>'submenu'</default>
+      <summary>Display Mode in Power Menu</summary>
+      <description>How to display OS options in power menu: 'submenu' or 'inline'</description>
+    </key>
+    <key name="confirm-reboot" type="b">
+      <default>true</default>
+      <summary>Confirm Reboot</summary>
+      <description>Show confirmation dialog before rebooting</description>
+    </key>
+    <key name="title-overrides" type="s">
+      <default>'{}'</default>
+      <summary>Title Overrides</summary>
+      <description>JSON mapping of entry ID or title to custom display name</description>
+    </key>
+    <key name="icon-overrides" type="s">
+      <default>'{}'</default>
+      <summary>Icon Overrides</summary>
+      <description>JSON mapping of entry ID or title to icon name or file path</description>
+    </key>
+    <key name="custom-entries" type="s">
+      <default>'[]'</default>
+      <summary>Custom OS Entries</summary>
+      <description>JSON array of custom boot entries</description>
+    </key>
+    <key name="hidden-entries" type="s">
+      <default>'[]'</default>
+      <summary>Hidden Boot Entries</summary>
+      <description>JSON array of boot IDs to hide</description>
+    </key>
+  </schema>
+</schemalist>
