@@ -44,33 +44,34 @@ chmod +x install.sh
 
 ## Optional System Configuration
 
-### 1. Passwordless Reboot (Polkit Rule)
-To allow changing the next boot target without typing your administrator password each time, create `/etc/polkit-1/rules.d/99-custom-reboot.rules`:
+### 1. Passwordless Reboot (One-Liner)
+To reboot into your other operating systems without typing your administrator password each time, run this one-liner in your terminal:
 
-```javascript
-/* Polkit rule for Power Menu Custom Reboot extension */
+```bash
+sudo tee /etc/polkit-1/rules.d/99-custom-reboot.rules << 'EOF'
 polkit.addRule(function(action, subject) {
     if ((action.id == "org.freedesktop.policykit.exec") &&
-        subject.isInGroup("wheel")) {
+        (subject.isInGroup("wheel") || subject.isInGroup("sudo"))) {
         var cmd = action.lookup("command_line");
         if (cmd && (cmd.indexOf("efibootmgr") >= 0 || cmd.indexOf("grub-reboot") >= 0 || cmd.indexOf("grub2-reboot") >= 0 || cmd.indexOf("bootctl") >= 0)) {
             return polkit.Result.YES;
         }
     }
 });
+EOF
 ```
 
 ### 2. Disable GRUB Boot Timeout
 To boot straight into your default Linux distro without displaying the GRUB countdown:
-1. In `/etc/default/grub`, set:
-   ```bash
-   GRUB_TIMEOUT=0
-   GRUB_TIMEOUT_STYLE=hidden
-   ```
-2. Regenerate GRUB config:
-   ```bash
-   sudo grub2-mkconfig -o /boot/grub2/grub.cfg
-   ```
+
+```bash
+# Set timeout to 0 and hidden
+sudo sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/' /etc/default/grub
+grep -q "GRUB_TIMEOUT_STYLE" /etc/default/grub && sudo sed -i 's/^GRUB_TIMEOUT_STYLE=.*/GRUB_TIMEOUT_STYLE=hidden/' /etc/default/grub || echo 'GRUB_TIMEOUT_STYLE="hidden"' | sudo tee -a /etc/default/grub
+
+# Regenerate GRUB config
+sudo grub2-mkconfig -o /boot/grub2/grub.cfg 2>/dev/null || sudo grub-mkconfig -o /boot/grub/grub.cfg
+```
 
 ## Preferences
 
