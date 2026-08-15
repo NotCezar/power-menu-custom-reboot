@@ -11,5 +11,6 @@
     "50"
   ],
   "url": "https://github.com/NotCezar/power-menu-custom-reboot",
-  "settings-schema": "org.gnome.shell.extensions.power-menu-custom-reboot"
+  "settings-schema": "org.gnome.shell.extensions.power-menu-custom-reboot",
+  "version": 2
 }
