@@ -40,7 +40,7 @@ chmod +x install.sh
    ```bash
    gnome-extensions enable power-menu-custom-reboot@notcezar.github.io
    ```
-4. Restart GNOME Shell (log out and log back in on Wayland, or press `Alt+F2` -> `r` on X11).
+4. Restart GNOME Shell (log out and log back in on Wayland).
 
 ## Optional System Configuration
 
