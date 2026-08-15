@@ -44,8 +44,8 @@ chmod +x install.sh
 
 ## Optional System Configuration
 
-### 1. Passwordless Reboot (One-Liner)
-To reboot into your other operating systems without typing your administrator password each time, run this one-liner in your terminal:
+### 1. Passwordless Reboot (All Distros)
+To allow changing the next boot target without typing your administrator password each time, run this universal one-liner in your terminal (works on **Fedora, Ubuntu, Debian, Arch Linux, openSUSE, and Pop!_OS**):
 
 ```bash
 sudo tee /etc/polkit-1/rules.d/99-custom-reboot.rules << 'EOF'
@@ -61,17 +61,50 @@ polkit.addRule(function(action, subject) {
 EOF
 ```
 
-### 2. Disable GRUB Boot Timeout
-To boot straight into your default Linux distro without displaying the GRUB countdown:
+---
 
-```bash
-# Set timeout to 0 and hidden
-sudo sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/' /etc/default/grub
-grep -q "GRUB_TIMEOUT_STYLE" /etc/default/grub && sudo sed -i 's/^GRUB_TIMEOUT_STYLE=.*/GRUB_TIMEOUT_STYLE=hidden/' /etc/default/grub || echo 'GRUB_TIMEOUT_STYLE="hidden"' | sudo tee -a /etc/default/grub
+### 2. GRUB Read Permissions (Fedora / RHEL / openSUSE)
+On some distributions (like Fedora), GRUB directories have restricted permissions by default. Ensure unprivileged read access so GNOME Shell can detect your boot entries without superuser prompts:
 
-# Regenerate GRUB config
-sudo grub2-mkconfig -o /boot/grub2/grub.cfg 2>/dev/null || sudo grub-mkconfig -o /boot/grub/grub.cfg
-```
+* **Fedora / RHEL / openSUSE**:
+  ```bash
+  sudo chmod 755 /boot/grub2 && sudo chmod 644 /boot/grub2/grub.cfg
+  ```
+* **Ubuntu / Debian / Arch Linux**:
+  *(Usually readable by default)*
+  ```bash
+  sudo chmod 644 /boot/grub/grub.cfg 2>/dev/null || true
+  ```
+
+---
+
+### 3. Disable GRUB Boot Countdown (Instant Boot)
+To boot straight into your default Linux distro without displaying the GRUB countdown screen:
+
+* **Universal (Auto-Detect Distro)**:
+  ```bash
+  sudo sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/' /etc/default/grub
+  grep -q "GRUB_TIMEOUT_STYLE" /etc/default/grub && sudo sed -i 's/^GRUB_TIMEOUT_STYLE=.*/GRUB_TIMEOUT_STYLE=hidden/' /etc/default/grub || echo 'GRUB_TIMEOUT_STYLE="hidden"' | sudo tee -a /etc/default/grub
+  grep -q "GRUB_RECORDFAIL_TIMEOUT" /etc/default/grub || echo 'GRUB_RECORDFAIL_TIMEOUT=0' | sudo tee -a /etc/default/grub
+
+  # Regenerate GRUB configuration
+  command -v update-grub >/dev/null && sudo update-grub || \
+  command -v grub2-mkconfig >/dev/null && sudo grub2-mkconfig -o /boot/grub2/grub.cfg || \
+  command -v grub-mkconfig >/dev/null && sudo grub-mkconfig -o /boot/grub/grub.cfg
+  ```
+
+* **Ubuntu / Debian / Pop!_OS**:
+  ```bash
+  sudo update-grub
+  ```
+* **Arch Linux / Manjaro**:
+  ```bash
+  sudo grub-mkconfig -o /boot/grub/grub.cfg
+  ```
+* **Fedora / RHEL / openSUSE**:
+  ```bash
+  sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+  ```
 
 ## Preferences
 
