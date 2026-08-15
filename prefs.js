@@ -246,10 +246,8 @@ export default class PowerMenuCustomRebootPreferences extends ExtensionPreferenc
             if (customPath && (customPath.startsWith('/') || customPath.startsWith('file://'))) {
                 const clean = customPath.replace('file://', '');
                 const file = Gio.File.new_for_path(clean);
-                if (file.query_exists(null)) {
-                    gtkImage.set_from_gicon(new Gio.FileIcon({ file }));
-                    return;
-                }
+                gtkImage.set_from_gicon(new Gio.FileIcon({ file }));
+                return;
             }
             const fallbackIcon = getOSIcon(title);
             gtkImage.set_from_icon_name(fallbackIcon);
