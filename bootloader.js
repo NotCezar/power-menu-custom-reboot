@@ -1,14 +1,15 @@
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import { execCommand, logError } from './utils.js';
 
 /**
  * Helper to read file asynchronously using Gio.File.load_contents_async
+ * without any synchronous query_exists calls.
  * @param {string} path 
  * @returns {Promise<string|null>}
  */
 async function loadFileAsync(path) {
     const file = Gio.File.new_for_path(path);
-    if (!file.query_exists(null)) return null;
 
     return new Promise((resolve) => {
         file.load_contents_async(null, (sourceFile, res) => {
@@ -75,7 +76,7 @@ export class BootloaderManager {
             return this._cachedEntries;
         }
 
-        const backend = settings.get_string('bootloader-backend');
+        const backend = settings ? settings.get_string('bootloader-backend') : 'auto';
         let entries = [];
 
         // Prioritize GRUB first on Linux since os-prober manages Windows & OS entries
@@ -200,7 +201,8 @@ export class BootloaderManager {
     }
 
     static async setGrubBootTarget(id) {
-        const bin = (await this.binExists('/usr/bin/grub2-reboot')) ? '/usr/bin/grub2-reboot' : '/usr/bin/grub-reboot';
+        const isGrub2 = await this.binExists('/usr/bin/grub2-reboot');
+        const bin = isGrub2 ? '/usr/bin/grub2-reboot' : '/usr/bin/grub-reboot';
         const [status] = await execCommand(['/usr/bin/pkexec', bin, id]);
         return status === 0;
     }
@@ -291,8 +293,28 @@ export class BootloaderManager {
         return status === 0;
     }
 
+    /**
+     * Non-blocking asynchronous binary check using query_info_async
+     * @param {string} path 
+     * @returns {Promise<boolean>}
+     */
     static async binExists(path) {
-        const file = Gio.File.new_for_path(path);
-        return file.query_exists(null);
+        return new Promise((resolve) => {
+            const file = Gio.File.new_for_path(path);
+            file.query_info_async(
+                Gio.FILE_ATTRIBUTE_STANDARD_TYPE,
+                Gio.FileQueryInfoFlags.NONE,
+                GLib.PRIORITY_DEFAULT,
+                null,
+                (sourceFile, res) => {
+                    try {
+                        const info = sourceFile.query_info_finish(res);
+                        resolve(Boolean(info));
+                    } catch (e) {
+                        resolve(false);
+                    }
+                }
+            );
+        });
     }
 }

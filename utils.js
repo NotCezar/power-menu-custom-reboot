@@ -41,9 +41,7 @@ export function createGIcon(iconValue) {
     if (iconValue.startsWith('/') || iconValue.startsWith('file://')) {
         const cleanPath = iconValue.replace('file://', '');
         const file = Gio.File.new_for_path(cleanPath);
-        if (file.query_exists(null)) {
-            return new Gio.FileIcon({ file: file });
-        }
+        return new Gio.FileIcon({ file: file });
     }
 
     return Gio.Icon.new_for_string(iconValue);

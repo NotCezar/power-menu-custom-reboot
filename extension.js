@@ -81,6 +81,11 @@ export default class PowerMenuCustomReboot extends Extension {
             return;
         }
 
+        // Post-await guard: check if extension was disabled while fetching entries
+        if (!this._settings || !this._systemMenu) {
+            return;
+        }
+
         if (entries.length === 0) {
             return;
         }
@@ -104,6 +109,7 @@ export default class PowerMenuCustomReboot extends Extension {
     }
 
     _getTitleOverrides() {
+        if (!this._settings) return {};
         try {
             const json = this._settings.get_string('title-overrides');
             return JSON.parse(json || '{}');
@@ -113,6 +119,7 @@ export default class PowerMenuCustomReboot extends Extension {
     }
 
     _getIconOverrides() {
+        if (!this._settings) return {};
         try {
             const json = this._settings.get_string('icon-overrides');
             return JSON.parse(json || '{}');
@@ -225,7 +232,6 @@ export default class PowerMenuCustomReboot extends Extension {
     async _onRebootTargetSelected(entry) {
         Main.panel.closeQuickSettings();
 
-        const confirm = this._settings.get_boolean('confirm-reboot');
         const success = await BootloaderManager.setBootTarget(entry);
 
         if (success) {

@@ -6,11 +6,9 @@
     "45",
     "46",
     "47",
-    "48",
-    "49",
-    "50"
+    "48"
   ],
   "url": "https://github.com/NotCezar/power-menu-custom-reboot",
   "settings-schema": "org.gnome.shell.extensions.power-menu-custom-reboot",
-  "version": 2
+  "version": 3
 }
