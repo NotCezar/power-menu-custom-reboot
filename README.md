@@ -1,6 +1,6 @@
 # Power Menu Custom Reboot
 
-A modern GNOME Shell extension that seamlessly integrates multi-boot OS entries (Windows, Linux, etc.) directly into the **Quick Settings Power Menu** next to Restart and Power Off.
+A modern GNOME Shell extension that integrates multi-boot OS entries (Windows, Linux, etc.) directly into the **Quick Settings Power Menu** next to Restart and Power Off.
 
 ## Features
 
