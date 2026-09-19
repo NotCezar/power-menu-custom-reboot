@@ -16,6 +16,11 @@
       <summary>Confirm Reboot</summary>
       <description>Show confirmation dialog before rebooting</description>
     </key>
+    <key name="default-boot-entry" type="s">
+      <default>''</default>
+      <summary>Default Boot Entry</summary>
+      <description>ID or title of the operating system set as persistent default boot target</description>
+    </key>
     <key name="title-overrides" type="s">
       <default>'{}'</default>
       <summary>Title Overrides</summary>

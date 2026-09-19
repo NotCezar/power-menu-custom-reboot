@@ -1,14 +1,15 @@
 # Power Menu Custom Reboot
 
-A modern GNOME Shell extension that integrates multi-boot OS entries (Windows, Linux, etc.) directly into the **Quick Settings Power Menu** next to Restart and Power Off.
+A modern GNOME Shell extension that seamlessly integrates multi-boot OS entries (Windows, Linux, etc.) directly into the **Quick Settings Power Menu** next to Restart and Power Off.
 
 ## Features
 
 - **Native Power Menu Integration**: Choose your boot target directly when clicking the power icon in Quick Settings.
+- **Default Boot OS Selection**: Choose which operating system starts automatically every time your PC turns on.
 - **Multi-Bootloader Support**:
-  - **GRUB / GRUB2**: Reliable `grub-reboot` / `grub2-reboot` support with os-prober integration.
-  - **EFI Boot Manager (`efibootmgr`)**: Direct NVRAM boot-next support.
-  - **systemd-boot**: `bootctl set-oneshot` support.
+  - **GRUB / GRUB2**: Reliable `grub-reboot` / `grub2-reboot` and `grub-set-default` / `grub2-set-default` support with os-prober integration.
+  - **EFI Boot Manager (`efibootmgr`)**: Direct NVRAM boot-next and persistent BootOrder management.
+  - **systemd-boot**: `bootctl set-oneshot` and `bootctl set-default` support.
 - **Rename Boot Entries**: Rename cryptic partition names (e.g. `Windows Boot Manager (on /dev/nvme0n1p1)`) to clean names like `Windows 11`.
 - **Custom Icon Files**: Choose your own `.svg` or `.png` icon files for each operating system.
 - **Toggle Visibility**: Easily hide entries you don't need (like installers or utility entries).
@@ -40,12 +41,12 @@ chmod +x install.sh
    ```bash
    gnome-extensions enable power-menu-custom-reboot@notcezar.github.io
    ```
-4. Restart GNOME Shell (log out and log back in on Wayland).
+4. Restart GNOME Shell (log out and log back in on Wayland, or press `Alt+F2` -> `r` on X11).
 
 ## Optional System Configuration
 
-### 1. Passwordless Reboot (All Distros)
-To allow changing the next boot target without typing your administrator password each time, run this universal one-liner in your terminal (works on **Fedora, Ubuntu, Debian, Arch Linux, openSUSE, and Pop!_OS**):
+### 1. Passwordless Reboot & Default OS Setup (All Distros)
+To allow changing reboot targets and the default boot operating system without typing your administrator password each time, run this universal one-liner in your terminal (works on **Fedora, Ubuntu, Debian, Arch Linux, openSUSE, and Pop!_OS**):
 
 ```bash
 sudo tee /etc/polkit-1/rules.d/99-custom-reboot.rules << 'EOF'
@@ -53,7 +54,7 @@ polkit.addRule(function(action, subject) {
     if ((action.id == "org.freedesktop.policykit.exec") &&
         (subject.isInGroup("wheel") || subject.isInGroup("sudo"))) {
         var cmd = action.lookup("command_line");
-        if (cmd && (cmd.indexOf("efibootmgr") >= 0 || cmd.indexOf("grub-reboot") >= 0 || cmd.indexOf("grub2-reboot") >= 0 || cmd.indexOf("bootctl") >= 0)) {
+        if (cmd && (cmd.indexOf("efibootmgr") >= 0 || cmd.indexOf("grub-reboot") >= 0 || cmd.indexOf("grub2-reboot") >= 0 || cmd.indexOf("grub-set-default") >= 0 || cmd.indexOf("grub2-set-default") >= 0 || cmd.indexOf("bootctl") >= 0)) {
             return polkit.Result.YES;
         }
     }
@@ -79,7 +80,7 @@ On some distributions (like Fedora), GRUB directories have restricted permission
 ---
 
 ### 3. Disable GRUB Boot Countdown (Instant Boot)
-To boot straight into your default Linux distro without displaying the GRUB countdown screen:
+To boot straight into your default operating system without displaying the GRUB countdown screen:
 
 * **Universal (Auto-Detect Distro)**:
   ```bash

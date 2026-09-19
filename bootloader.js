@@ -129,6 +129,42 @@ export class BootloaderManager {
     }
 
     /**
+     * Get all detected boot entries without filtering out current OS (useful for default boot selection)
+     * @param {Gio.Settings} settings 
+     * @returns {Promise<Array<{id: string, title: string, backend: string, isCurrentOs?: boolean}>>}
+     */
+    static async getAllRawEntries(settings) {
+        const backend = settings ? settings.get_string('bootloader-backend') : 'auto';
+        let raw = [];
+
+        if (backend === 'grub' || backend === 'auto') {
+            try {
+                raw = await this.getGrubBootEntries();
+            } catch (e) {}
+        }
+        if ((backend === 'efibootmgr' || backend === 'auto') && raw.length === 0) {
+            try {
+                raw = await this.getEfiBootEntries();
+            } catch (e) {}
+        }
+        if ((backend === 'systemd-boot' || backend === 'auto') && raw.length === 0) {
+            try {
+                raw = await this.getSystemdBootEntries();
+            } catch (e) {}
+        }
+
+        const currentOsIds = await this.getCurrentOsIdentifiers();
+        return raw.map(entry => {
+            const titleLower = (entry.title || '').toLowerCase();
+            const isCurrent = currentOsIds.some(id => id.length >= 3 && titleLower.includes(id));
+            return {
+                ...entry,
+                isCurrentOs: isCurrent,
+            };
+        });
+    }
+
+    /**
      * Always hide the currently running OS and firmware setup entries
      */
     static async _filterCurrentOs(entries) {
@@ -145,7 +181,7 @@ export class BootloaderManager {
     }
 
     /**
-     * Set the next boot target
+     * Set the next one-time boot target (for custom reboot)
      * @param {Object} entry 
      * @returns {Promise<boolean>}
      */
@@ -156,6 +192,24 @@ export class BootloaderManager {
             return await this.setEfiBootTarget(entry.id);
         } else if (entry.backend === 'systemd-boot') {
             return await this.setSystemdBootTarget(entry.id);
+        }
+        return false;
+    }
+
+    /**
+     * Set the permanent default boot target (starts automatically on every power on)
+     * @param {Object} entry 
+     * @returns {Promise<boolean>}
+     */
+    static async setDefaultBootTarget(entry) {
+        if (!entry) return false;
+
+        if (entry.backend === 'grub') {
+            return await this.setGrubDefaultBootTarget(entry.id);
+        } else if (entry.backend === 'efibootmgr') {
+            return await this.setEfiDefaultBootTarget(entry.id);
+        } else if (entry.backend === 'systemd-boot') {
+            return await this.setSystemdDefaultBootTarget(entry.id);
         }
         return false;
     }
@@ -207,6 +261,13 @@ export class BootloaderManager {
         return status === 0;
     }
 
+    static async setGrubDefaultBootTarget(id) {
+        const isGrub2 = await this.binExists('/usr/bin/grub2-set-default');
+        const bin = isGrub2 ? '/usr/bin/grub2-set-default' : '/usr/bin/grub-set-default';
+        const [status] = await execCommand(['/usr/bin/pkexec', bin, id]);
+        return status === 0;
+    }
+
     // --- EFIBOOTMGR ---
 
     static async getEfiBootEntries() {
@@ -253,6 +314,24 @@ export class BootloaderManager {
         return status === 0;
     }
 
+    static async setEfiDefaultBootTarget(bootNum) {
+        const [status, stdout] = await execCommand(['efibootmgr']);
+        if (status !== 0 || !stdout) return false;
+
+        const orderMatch = /BootOrder:\s+([0-9A-Fa-f,]+)/.exec(stdout);
+        let orderList = [];
+        if (orderMatch) {
+            orderList = orderMatch[1].split(',').map(s => s.trim()).filter(Boolean);
+        }
+
+        // Move bootNum to the front of the list
+        const filtered = orderList.filter(b => b.toLowerCase() !== bootNum.toLowerCase());
+        const newOrder = [bootNum, ...filtered].join(',');
+
+        const [setResult] = await execCommand(['/usr/bin/pkexec', '/usr/bin/efibootmgr', '-o', newOrder]);
+        return setResult === 0;
+    }
+
     // --- SYSTEMD-BOOT ---
 
     static async getSystemdBootEntries() {
@@ -290,6 +369,12 @@ export class BootloaderManager {
     static async setSystemdBootTarget(id) {
         const bin = '/usr/bin/bootctl';
         const [status] = await execCommand(['/usr/bin/pkexec', bin, 'set-oneshot', id]);
+        return status === 0;
+    }
+
+    static async setSystemdDefaultBootTarget(id) {
+        const bin = '/usr/bin/bootctl';
+        const [status] = await execCommand(['/usr/bin/pkexec', bin, 'set-default', id]);
         return status === 0;
     }
 

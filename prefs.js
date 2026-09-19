@@ -47,6 +47,7 @@ export default class PowerMenuCustomRebootPreferences extends ExtensionPreferenc
                 settings.set_string('bootloader-backend', backends[idx]);
                 BootloaderManager.invalidateCache();
                 this._refreshDetectedEntriesGroup(window, entriesGroup, settings);
+                this._refreshDefaultBootRow(window, defaultBootRow, settings);
             }
         });
         generalGroup.add(backendRow);
@@ -56,7 +57,7 @@ export default class PowerMenuCustomRebootPreferences extends ExtensionPreferenc
             title: 'Power Menu Layout',
             subtitle: 'How OS targets are presented in the Quick Settings Power Menu',
             model: Gtk.StringList.new([
-                'Submenu ("Reboot Into…")',
+                'Submenu ("Reboot Into...")',
                 'Inline Action Items'
             ]),
         });
@@ -87,6 +88,15 @@ export default class PowerMenuCustomRebootPreferences extends ExtensionPreferenc
         });
         generalGroup.add(confirmRow);
 
+        // Default Boot Operating System Row
+        const defaultBootRow = new Adw.ComboRow({
+            title: 'Default Boot OS',
+            subtitle: 'Operating system that starts automatically when PC powers on',
+            model: Gtk.StringList.new(['Loading boot options...']),
+        });
+        generalGroup.add(defaultBootRow);
+        await this._refreshDefaultBootRow(window, defaultBootRow, settings);
+
         // OS Entries & Customization Group
         const entriesGroup = new Adw.PreferencesGroup({
             title: 'Detected OS Entries & Customization',
@@ -95,6 +105,67 @@ export default class PowerMenuCustomRebootPreferences extends ExtensionPreferenc
         page.add(entriesGroup);
 
         await this._refreshDetectedEntriesGroup(window, entriesGroup, settings);
+    }
+
+    async _refreshDefaultBootRow(window, defaultBootRow, settings) {
+        let allEntries = [];
+        try {
+            allEntries = await BootloaderManager.getAllRawEntries(settings);
+        } catch (e) {
+            logError('Failed to load raw boot entries for default selection', e);
+        }
+
+        if (allEntries.length === 0) {
+            defaultBootRow.set_model(Gtk.StringList.new(['Default Linux System']));
+            defaultBootRow.set_sensitive(false);
+            return;
+        }
+
+        let titleOverrides = {};
+        try {
+            titleOverrides = JSON.parse(settings.get_string('title-overrides') || '{}');
+        } catch (e) {}
+
+        const labels = allEntries.map(e => {
+            const custom = titleOverrides[e.id] || titleOverrides[e.title];
+            const baseName = custom || e.title;
+            return e.isCurrentOs ? `${baseName} (Current Linux OS)` : baseName;
+        });
+
+        const currentSavedDefault = settings.get_string('default-boot-entry');
+        let selectedIdx = allEntries.findIndex(e => e.id === currentSavedDefault || e.title === currentSavedDefault);
+        if (selectedIdx < 0) {
+            selectedIdx = allEntries.findIndex(e => e.isCurrentOs);
+            if (selectedIdx < 0) selectedIdx = 0;
+        }
+
+        defaultBootRow.set_model(Gtk.StringList.new(labels));
+        defaultBootRow.set_selected(selectedIdx);
+        defaultBootRow.set_sensitive(true);
+
+        // Disconnect previous handler on widget if any
+        if (defaultBootRow._signalId) {
+            defaultBootRow.disconnect(defaultBootRow._signalId);
+            defaultBootRow._signalId = null;
+        }
+
+        defaultBootRow._signalId = defaultBootRow.connect('notify::selected', async () => {
+            const idx = defaultBootRow.get_selected();
+            if (idx >= 0 && idx < allEntries.length) {
+                const target = allEntries[idx];
+                const displayName = titleOverrides[target.id] || titleOverrides[target.title] || target.title;
+                
+                const success = await BootloaderManager.setDefaultBootTarget(target);
+                if (success) {
+                    settings.set_string('default-boot-entry', target.id);
+                    const toast = new Adw.Toast({ title: `Default boot OS set to: ${displayName}` });
+                    window.add_toast(toast);
+                } else {
+                    const toast = new Adw.Toast({ title: `Failed to set default boot OS to "${displayName}".` });
+                    window.add_toast(toast);
+                }
+            }
+        });
     }
 
     async _refreshDetectedEntriesGroup(window, entriesGroup, settings) {
@@ -136,15 +207,18 @@ export default class PowerMenuCustomRebootPreferences extends ExtensionPreferenc
             hiddenList = JSON.parse(settings.get_string('hidden-entries') || '[]');
         } catch (e) {}
 
+        const currentSavedDefault = settings.get_string('default-boot-entry');
+
         for (const entry of rawEntries) {
             const isHidden = hiddenList.includes(entry.id) || hiddenList.includes(entry.title);
             const customTitle = titleOverrides[entry.id] || titleOverrides[entry.title] || '';
             const customIconPath = iconOverrides[entry.id] || iconOverrides[entry.title] || '';
             const currentDisplayTitle = customTitle || entry.title;
+            const isDefault = currentSavedDefault === entry.id || currentSavedDefault === entry.title;
 
             const expanderRow = new Adw.ExpanderRow({
                 title: currentDisplayTitle,
-                subtitle: isHidden ? 'Disabled (Hidden from Power Menu)' : `ID: ${entry.id} (${entry.backend})`,
+                subtitle: isHidden ? 'Disabled (Hidden from Power Menu)' : (isDefault ? `[Default Boot OS] ID: ${entry.id} (${entry.backend})` : `ID: ${entry.id} (${entry.backend})`),
                 expanded: false,
             });
 
@@ -235,8 +309,36 @@ export default class PowerMenuCustomRebootPreferences extends ExtensionPreferenc
                 resetIconBtn.set_sensitive(false);
             });
             iconRow.add_suffix(resetIconBtn);
-
             expanderRow.add_row(iconRow);
+
+            // Subrow 3: Set as Default Boot OS
+            const setDefaultRow = new Adw.ActionRow({
+                title: 'Default Boot OS',
+                subtitle: isDefault ? 'Currently set as the default startup system' : 'Make this OS start automatically on power on',
+            });
+            const setDefaultBtn = new Gtk.Button({
+                label: isDefault ? 'Default OS' : 'Set as Default',
+                valign: Gtk.Align.CENTER,
+                sensitive: !isDefault,
+            });
+            setDefaultBtn.connect('clicked', async () => {
+                const displayName = titleOverrides[entry.id] || titleOverrides[entry.title] || entry.title;
+                const success = await BootloaderManager.setDefaultBootTarget(entry);
+                if (success) {
+                    settings.set_string('default-boot-entry', entry.id);
+                    setDefaultRow.set_subtitle('Currently set as the default startup system');
+                    setDefaultBtn.set_label('Default OS');
+                    setDefaultBtn.set_sensitive(false);
+                    const toast = new Adw.Toast({ title: `Default boot OS set to: ${displayName}` });
+                    window.add_toast(toast);
+                } else {
+                    const toast = new Adw.Toast({ title: `Failed to set default boot OS to "${displayName}".` });
+                    window.add_toast(toast);
+                }
+            });
+            setDefaultRow.add_suffix(setDefaultBtn);
+            expanderRow.add_row(setDefaultRow);
+
             entriesGroup.add(expanderRow);
         }
     }
