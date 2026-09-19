@@ -8,6 +8,7 @@ import { getOSIcon, logError } from './utils.js';
 export default class PowerMenuCustomRebootPreferences extends ExtensionPreferences {
     async fillPreferencesWindow(window) {
         const settings = this.getSettings('org.gnome.shell.extensions.power-menu-custom-reboot');
+        this._entryRows = [];
 
         const page = new Adw.PreferencesPage({
             title: 'Power Menu Reboot',
@@ -99,7 +100,7 @@ export default class PowerMenuCustomRebootPreferences extends ExtensionPreferenc
 
         // OS Entries & Customization Group
         const entriesGroup = new Adw.PreferencesGroup({
-            title: 'Detected OS Entries & Customization',
+            title: 'Detected OS Entries and Customization',
             description: 'Rename options, choose custom icon files (.svg, .png), or toggle entries on/off.',
         });
         page.add(entriesGroup);
@@ -169,12 +170,15 @@ export default class PowerMenuCustomRebootPreferences extends ExtensionPreferenc
     }
 
     async _refreshDetectedEntriesGroup(window, entriesGroup, settings) {
-        let child = entriesGroup.get_first_child();
-        while (child) {
-            const next = child.get_next_sibling();
-            entriesGroup.remove(child);
-            child = next;
+        if (!this._entryRows) {
+            this._entryRows = [];
         }
+        for (const row of this._entryRows) {
+            try {
+                entriesGroup.remove(row);
+            } catch (e) {}
+        }
+        this._entryRows = [];
 
         let rawEntries = [];
         try {
@@ -189,6 +193,7 @@ export default class PowerMenuCustomRebootPreferences extends ExtensionPreferenc
                 subtitle: 'Ensure your bootloader (GRUB / efibootmgr) has other OS targets configured',
             });
             entriesGroup.add(emptyRow);
+            this._entryRows.push(emptyRow);
             return;
         }
 
@@ -340,6 +345,7 @@ export default class PowerMenuCustomRebootPreferences extends ExtensionPreferenc
             expanderRow.add_row(setDefaultRow);
 
             entriesGroup.add(expanderRow);
+            this._entryRows.push(expanderRow);
         }
     }
 

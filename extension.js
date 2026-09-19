@@ -44,16 +44,17 @@ export default class PowerMenuCustomReboot extends Extension {
 
     _tryAttachMenu() {
         const quickSettings = Main.panel.statusArea.quickSettings;
-        const systemIndicator = quickSettings?._system;
-        const systemItem = systemIndicator?._systemItem;
-        const menu = systemItem?.menu;
+        if (!quickSettings) {
+            this._scheduleRetry();
+            return;
+        }
+
+        const systemIndicator = quickSettings._system || quickSettings._systemItem;
+        const systemItem = systemIndicator?._systemItem || systemIndicator;
+        const menu = systemItem?.menu || systemIndicator?.menu;
 
         if (!menu) {
-            this._retryTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
-                this._retryTimeoutId = 0;
-                this._tryAttachMenu();
-                return GLib.SOURCE_REMOVE;
-            });
+            this._scheduleRetry();
             return;
         }
 
@@ -66,6 +67,15 @@ export default class PowerMenuCustomReboot extends Extension {
         }, this);
 
         this._updateMenu();
+    }
+
+    _scheduleRetry() {
+        if (this._retryTimeoutId) return;
+        this._retryTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+            this._retryTimeoutId = 0;
+            this._tryAttachMenu();
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     async _updateMenu() {
@@ -206,11 +216,18 @@ export default class PowerMenuCustomReboot extends Extension {
     _insertIntoSystemMenu(item) {
         if (!this._systemMenu) return;
 
-        const items = this._systemMenu._getMenuItems();
+        let items = [];
+        if (typeof this._systemMenu._getMenuItems === 'function') {
+            items = this._systemMenu._getMenuItems();
+        } else if (this._systemMenu.box && typeof this._systemMenu.box.get_children === 'function') {
+            items = this._systemMenu.box.get_children();
+        }
+
         let targetIndex = -1;
 
         for (let i = 0; i < items.length; i++) {
-            const label = items[i].label?.text || items[i]._label?.text || '';
+            const it = items[i];
+            const label = it.label?.text || it._label?.text || it.text || '';
             if (label.includes('Restart') || label.includes('Reboot') || label.includes('Reiniciar')) {
                 targetIndex = i + 1;
                 break;
